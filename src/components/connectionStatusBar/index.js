@@ -1,9 +1,10 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import _ from 'lodash';
-import {StyleSheet, Text, NetInfo} from 'react-native';
+import {StyleSheet, Text} from 'react-native';
+import NetInfo from "@react-native-community/netinfo";
 import * as Constants from '../../helpers/Constants';
-import {BaseComponent} from '../../commons';
+import {PureBaseComponent} from '../../commons';
 import {Colors, Typography} from '../../style';
 import TouchableOpacity from '../touchableOpacity';
 import View from '../view';
@@ -13,7 +14,7 @@ import View from '../view';
  * @image: https://user-images.githubusercontent.com/33805983/34683190-f3b1904c-f4a9-11e7-9d46-9a340bd35448.png, https://user-images.githubusercontent.com/33805983/34484206-edc6c6e4-efcb-11e7-88b2-cd394c19dd5e.png
  * @example: https://github.com/wix/react-native-ui-lib/blob/master/demo/src/screens/componentScreens/ConnectionStatusBarScreen.js
  */
-export default class ConnectionStatusBar extends BaseComponent {
+export default class ConnectionStatusBar extends PureBaseComponent {
   static displayName = 'ConnectionStatusBar';
   static propTypes = {
     /**
@@ -28,11 +29,17 @@ export default class ConnectionStatusBar extends BaseComponent {
      * Text to show as the status
      */
     allowDismiss: PropTypes.bool,
+
+    /**
+     * Use absolute position for the component
+     */
+    useAbsolutePosition: PropTypes.bool
   };
 
   static defaultProps = {
     label: 'No internet. Check your connection.',
     allowDismiss: false,
+    useAbsolutePosition: true
   };
 
   static onConnectionLost;
@@ -50,7 +57,7 @@ export default class ConnectionStatusBar extends BaseComponent {
 
     this.state = {
       isConnected: true,
-      isCancelled: false,
+      isCancelled: false
     };
     this.getInitialConnectionState();
   }
@@ -74,7 +81,7 @@ export default class ConnectionStatusBar extends BaseComponent {
     if (isConnected !== this.state.isConnected) {
       this.setState({
         isConnected,
-        isCancelled: false,
+        isCancelled: false
       });
       if (this.props.onConnectionChange) {
         this.props.onConnectionChange(isConnected, false);
@@ -111,9 +118,12 @@ export default class ConnectionStatusBar extends BaseComponent {
     if (this.state.isConnected || this.state.isCancelled) {
       return false;
     }
-
+    const containerStyle = [
+      this.styles.topContainer,
+      this.props.useAbsolutePosition ? this.styles.absolutePosition : null
+    ];
     return (
-      <View useSafeArea style={this.styles.absoluteContainer}>
+      <View useSafeArea style={containerStyle}>
         <View style={this.styles.container}>
           <View style={{flex: 1, flexDirection: 'row'}}>
             <Text style={this.styles.text}>{this.props.label}</Text>
@@ -132,14 +142,16 @@ export default class ConnectionStatusBar extends BaseComponent {
 function createStyles() {
   const typography = Constants.isSmallScreen ? Typography.text90 : Typography.text80;
   return StyleSheet.create({
-    absoluteContainer: {
-      backgroundColor: Colors.dark30,
+    topContainer: {
+      backgroundColor: Colors.dark30
+    },
+    absolutePosition: {
       ...StyleSheet.absoluteFillObject,
-      bottom: undefined,
+      bottom: undefined
     },
     container: {
       flexDirection: 'column',
-      justifyContent: 'center',
+      justifyContent: 'center'
     },
     text: {
       flex: 1,
@@ -148,16 +160,16 @@ function createStyles() {
       color: Colors.dark60,
       marginTop: 8,
       marginBottom: 8,
-      alignSelf: 'center',
+      alignSelf: 'center'
     },
     xContainer: {
       paddingLeft: 10,
       paddingRight: 10,
-      alignSelf: 'center',
+      alignSelf: 'center'
     },
     x: {
       fontSize: Typography.text80.fontSize,
-      color: Colors.black,
-    },
+      color: Colors.black
+    }
   });
 }

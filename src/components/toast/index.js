@@ -2,18 +2,18 @@ import _ from 'lodash';
 import PropTypes from 'prop-types';
 import React from 'react';
 import {StyleSheet} from 'react-native';
-import * as Animatable from 'react-native-animatable';
-import {BlurView} from 'react-native-blur';
+import {View as AnimatableView, Text as AnimatableText} from 'react-native-animatable';
+import {BlurView} from '@react-native-community/blur';
 import {BaseComponent} from '../../commons';
-import {ThemeManager, Colors, Typography, BorderRadiuses} from '../../style';
+import {AnimatableManager, ThemeManager, Colors, Typography, BorderRadiuses} from '../../style';
 import Assets from '../../assets';
 import View from '../view';
 import Button from '../button';
 import Image from '../image';
 
-
 const DURATION = 300;
 const DELAY = 100;
+const ANIMATION_SUFFIX = 'toast';
 
 /**
  * @description Toast component for showing a feedback about a user action.
@@ -94,57 +94,57 @@ export default class Toast extends BaseComponent {
      */
     enableBlur: PropTypes.bool,
     /**
-     * blur option for blur effect according to react-native-blur lib (make sure enableBlur is on)
+     * blur option for blur effect according to @react-native-community/blur lib (make sure enableBlur is on)
      */
     blurOptions: PropTypes.object,
     /**
      * custom zIndex for toast
      */
-    zIndex: PropTypes.number,
+    zIndex: PropTypes.number
   };
 
   static defaultProps = {
     position: 'top',
     color: Colors.white,
     animated: true,
-    zIndex: 100,
+    zIndex: 100
   };
 
   constructor(props) {
     super(props);
 
+    const {animated} = this.props;
+
     this.state = {
       isVisible: false,
-      animationConfig: this.getAnimation(true),
-      contentAnimation: this.getContentAnimation(true),
+      animationConfig: animated ? this.getAnimation(true) : {},
+      contentAnimation: animated ? this.getContentAnimation(true) : {},
       duration: DURATION,
-      delay: DELAY,
+      delay: DELAY
     };
 
-    const {animated} = this.props;
     if (animated) {
-      setupRelativeAnimation(getHeight(this.props));
+      AnimatableManager.loadSlideByHeightDefinitions(getHeight(this.props), ANIMATION_SUFFIX);
     }
   }
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     const {visible, animated} = nextProps;
     const {isVisible} = this.state;
     if (visible !== isVisible) {
       if (animated) {
-        setupRelativeAnimation(getHeight(nextProps));
+        AnimatableManager.loadSlideByHeightDefinitions(getHeight(this.props), ANIMATION_SUFFIX);
       }
 
       const newState = animated
         ? {
           animationConfig: this.getAnimation(visible),
-          contentAnimation: this.getContentAnimation(visible),
+          contentAnimation: this.getContentAnimation(visible)
         }
         : {
           animationConfig: {},
-          contentAnimation: {},
+          contentAnimation: {}
         };
-
       this.setState(newState);
     }
   }
@@ -176,17 +176,18 @@ export default class Toast extends BaseComponent {
         animation: shouldShow ? 'fadeIn' : 'fadeOut',
         duration,
         delay: shouldShow ? delay : 0,
-        onAnimationEnd: () => this.onAnimationEnd(),
+        onAnimationEnd: () => this.onAnimationEnd()
       };
     }
   }
 
   getBlurOptions() {
     const {blurOptions} = this.getThemeProps();
+
     return {
       blurType: 'light',
       amount: 5,
-      ...blurOptions,
+      ...blurOptions
     };
   }
 
@@ -198,10 +199,11 @@ export default class Toast extends BaseComponent {
     }
 
     const hasOneAction = _.size(actions) === 1;
+    const hasTwoActions = _.size(actions) === 2;
     const height = getHeight(this.props);
 
     return (
-      <View row height={height} centerV spread>
+      <View row={!hasTwoActions} height={height} centerV spread>
         {icon && (
           <View>
             <Image source={icon} resizeMode={'contain'} style={this.styles.icon} tintColor={color}/>
@@ -209,11 +211,12 @@ export default class Toast extends BaseComponent {
         )}
         {this.renderMessage()}
         {(hasOneAction || allowDismiss) && (
-          <View row height="100%">
+          <View row height="100%" marginL-8>
             {hasOneAction && this.renderOneAction()}
             {this.renderDismissButton()}
           </View>
         )}
+        {hasTwoActions && this.renderTwoActions()}
       </View>
     );
   }
@@ -222,10 +225,10 @@ export default class Toast extends BaseComponent {
     const {message, messageStyle, centerMessage, color} = this.props;
     const {contentAnimation} = this.state;
     return (
-      <View flex centerH={centerMessage}>
-        <Animatable.Text style={[this.styles.message, color && {color}, messageStyle]} {...contentAnimation}>
+      <View flex centerH={centerMessage} centerV>
+        <AnimatableText style={[this.styles.message, color && {color}, messageStyle]} {...contentAnimation}>
           {message}
-        </Animatable.Text>
+        </AnimatableText>
       </View>
     );
   }
@@ -236,27 +239,27 @@ export default class Toast extends BaseComponent {
 
     if (action) {
       return (
-        <Animatable.View {...contentAnimation}>
+        <AnimatableView {...contentAnimation}>
           <Button
             size="medium"
             style={this.styles.oneActionStyle}
             backgroundColor={Colors.rgba(ThemeManager.primaryColor, 0.7)}
             {...action}
           />
-        </Animatable.View>
+        </AnimatableView>
       );
     }
   }
 
   renderTwoActions() {
-    const {actions} = this.props;
+    const {actions, backgroundColor} = this.props;
     const {contentAnimation} = this.state;
 
     return (
-      <Animatable.View style={this.styles.containerWithTwoActions} {...contentAnimation}>
-        <Button size="small" {...actions[0]} />
-        <Button marginL-12 size="small" {...actions[1]} />
-      </Animatable.View>
+      <AnimatableView style={[this.styles.containerWithTwoActions, {backgroundColor}]} {...contentAnimation}>
+        <Button size="small" {...actions[0]}/>
+        <Button marginL-12 size="small" {...actions[1]}/>
+      </AnimatableView>
     );
   }
 
@@ -265,19 +268,19 @@ export default class Toast extends BaseComponent {
     const {contentAnimation} = this.state;
     if (allowDismiss) {
       return (
-        <Animatable.View style={{justifyContent: 'center'}} {...contentAnimation}>
+        <AnimatableView style={{justifyContent: 'center'}} {...contentAnimation}>
           <Button
             link
             iconStyle={[this.styles.dismissIconStyle, color && {tintColor: color}]}
             iconSource={Assets.icons.x}
             onPress={this.onDismiss}
           />
-        </Animatable.View>
+        </AnimatableView>
       );
     }
   }
 
-  // This weird layout should support iphoneX safe are
+  // This weird layout should support iphoneX safe area
   render() {
     const {backgroundColor, actions, enableBlur, testID, zIndex, renderContent} = this.getThemeProps();
     const {animationConfig} = this.state;
@@ -295,23 +298,19 @@ export default class Toast extends BaseComponent {
     return (
       <View style={[positionStyle]} useSafeArea testID={testID}>
         <View height={height}/>
-
-        <Animatable.View
+        <AnimatableView
           style={[
             this.styles.container,
-            !renderContent && {paddingHorizontal: 20},
+            !renderContent && !hasTwoActions && {paddingHorizontal: 20},
             backgroundColor && {backgroundColor},
             hasOneAction && this.styles.containerWithOneAction,
-            {zIndex},
+            {zIndex}
           ]}
           {...animationConfig}
         >
-          {enableBlur && <BlurView style={this.styles.blurView} {...blurOptions} />}
-
+          {enableBlur && <BlurView style={this.styles.blurView} {...blurOptions}/>}
           {this.renderContent()}
-
-          {hasTwoActions && <View>{this.renderTwoActions()}</View>}
-        </Animatable.View>
+        </AnimatableView>
       </View>
     );
   }
@@ -325,7 +324,7 @@ export default class Toast extends BaseComponent {
   onAnimationEnd() {
     const {visible} = this.props;
     this.setState({
-      isVisible: visible,
+      isVisible: visible
     });
     this.setDismissTimer();
     _.invoke(this.props, 'onAnimationEnd', visible);
@@ -340,53 +339,52 @@ export default class Toast extends BaseComponent {
     }
   }
 
-  onDismiss = (timer) => {
-    if (timer) { 
-      clearTimeout(timer); 
+  onDismiss = timer => {
+    if (timer) {
+      clearTimeout(timer);
     }
     _.invoke(this.props, 'onDismiss');
-  }
-
+  };
 }
 
 function createStyles() {
   return StyleSheet.create({
     container: {
       ...StyleSheet.absoluteFillObject,
-      backgroundColor: Colors.rgba(ThemeManager.primaryColor, 0.8),
+      backgroundColor: Colors.rgba(ThemeManager.primaryColor, 0.8)
     },
     containerWithOneAction: {
-      paddingRight: 0,
+      paddingRight: 0
     },
     containerWithTwoActions: {
       flexDirection: 'row',
       justifyContent: 'center',
       alignItems: 'center',
-      paddingBottom: 14,
+      paddingBottom: 14
     },
     message: {
       color: Colors.white,
-      ...Typography.text80,
+      ...Typography.text80
     },
     oneActionStyle: {
       borderRadius: BorderRadiuses.br0,
       minWidth: undefined,
-      height: '100%',
+      height: '100%'
     },
     dismissIconStyle: {
       width: 12,
       height: 12,
-      tintColor: Colors.white,
+      tintColor: Colors.white
     },
     blurView: {
-      ...StyleSheet.absoluteFillObject,
+      ...StyleSheet.absoluteFillObject
     },
     icon: {
       flex: 1,
       width: 24,
       height: 24,
-      marginRight: 16,
-    },
+      marginRight: 16
+    }
   });
 }
 
@@ -394,19 +392,18 @@ function getAnimationDescriptor(name, {duration = DURATION, delay = DELAY}) {
   const defaultProps = {duration, delay: 0};
   const animationDescriptorMap = {
     top: {
-      enter: {...defaultProps, animation: 'slideInDown_toast'},
-      exit: {...defaultProps, animation: 'slideOutUp_toast'},
+      enter: {...defaultProps, animation: AnimatableManager.animations.slideInDown_toast},
+      exit: {...defaultProps, animation: AnimatableManager.animations.slideOutUp_toast}
     },
     bottom: {
-      enter: {...defaultProps, animation: 'slideInUp_toast'},
-      exit: {...defaultProps, animation: 'slideOutDown_toast'},
+      enter: {...defaultProps, animation: AnimatableManager.animations.slideInUp_toast},
+      exit: {...defaultProps, animation: AnimatableManager.animations.slideOutDown_toast}
     },
     relative: {
-      enter: {...defaultProps, animation: 'growUp_toast'},
-      exit: {...defaultProps, animation: 'growDown_toast', delay},
-    },
+      enter: {...defaultProps, animation: AnimatableManager.animations.slideIn_toast},
+      exit: {...defaultProps, animation: AnimatableManager.animations.slideOut_toast, delay}
+    }
   };
-
   return animationDescriptorMap[name] || {};
 }
 
@@ -415,40 +412,8 @@ function getAbsolutePositionStyle(location) {
     position: 'absolute',
     left: 0,
     right: 0,
-    [location]: 0,
+    [location]: 0
   };
-}
-
-function setupRelativeAnimation(height) {
-  Animatable.initializeRegistryWithDefinitions({
-    // bottom
-    slideInUp_toast: {
-      from: {translateY: height},
-      to: {translateY: 0},
-    },
-    slideOutDown_toast: {
-      from: {translateY: 0},
-      to: {translateY: height},
-    },
-    // top
-    slideInDown_toast: {
-      from: {translateY: -height},
-      to: {translateY: 0},
-    },
-    slideOutUp_toast: {
-      from: {translateY: 0},
-      to: {translateY: -height},
-    },
-    // relative
-    growUp_toast: {
-      from: {height: 0},
-      to: {height},
-    },
-    growDown_toast: {
-      from: {height},
-      to: {height: 0},
-    },
-  });
 }
 
 function getHeight({height, actions}) {

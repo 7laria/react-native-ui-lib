@@ -1,7 +1,8 @@
-import React from 'react';
+import _ from 'lodash';
 import PropTypes from 'prop-types';
+import React from 'react';
 import {StyleSheet, ActivityIndicator} from 'react-native';
-import * as Animatable from 'react-native-animatable';
+import {View as AnimatableView} from 'react-native-animatable';
 import {Colors, Typography, ThemeManager} from '../../style';
 import * as Constants from '../../helpers/Constants';
 import {BaseComponent} from '../../commons';
@@ -35,20 +36,26 @@ export default class LoaderScreen extends BaseComponent {
      */
     messageStyle: PropTypes.oneOfType([PropTypes.object, PropTypes.number, PropTypes.array]),
     /**
-    * Show the screen as an absolute overlay
-    */
-    overlay: PropTypes.bool,
+     * Show the screen as an absolute overlay
+     */
+    overlay: PropTypes.bool
     /**
-     * Custom container style 
+     * Custom container style
      */
   };
 
   render() {
     const {message, messageStyle, loaderColor, overlay, backgroundColor, containerStyle, ...others} = this.props;
+
     const animationProps = this.extractAnimationProps();
-    
+    const Container = !_.isEmpty(animationProps) ? AnimatableView : View;
+    if (!_.isEmpty(animationProps)) {
+      console.warn('LoaderScreen component will soon stop supporting animationProps.' +
+          'Please wrap your LoaderScreen component with your own animation component, such as Animatable.View',);
+    }
+
     return (
-      <Animatable.View
+      <Container
         style={[overlay ? [styles.overlayContainer, {backgroundColor}] : styles.container, containerStyle]}
         {...animationProps}
       >
@@ -59,25 +66,25 @@ export default class LoaderScreen extends BaseComponent {
             color={loaderColor || (Constants.isIOS ? Colors.dark60 : ThemeManager.primaryColor)}
             {...others}
           />
-          {message && <Text style={[styles.message, messageStyle]}>{message}</Text>}
+          {!overlay && message && <Text style={[styles.message, messageStyle]}>{message}</Text>}
         </View>
-      </Animatable.View>
+      </Container>
     );
   }
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    flex: 1
   },
   overlayContainer: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: Colors.rgba(Colors.white, 0.85),
-    zIndex: 100,
+    zIndex: 100
   },
   message: {
     ...Typography.text70,
     marginTop: 18,
-    color: Colors.dark10,
-  },
+    color: Colors.dark10
+  }
 });

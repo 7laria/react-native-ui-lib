@@ -2,19 +2,24 @@ import React from 'react';
 import {TouchableOpacity as RNTouchableOpacity} from 'react-native';
 import PropTypes from 'prop-types';
 import _ from 'lodash';
-import {BaseComponent} from '../../commons';
+import {PureBaseComponent} from '../../commons';
 
 /**
  * @description: A wrapper for TouchableOpacity component. Support onPress, throttling and activeBackgroundColor
  * @extends: TouchableOpacity
+ * @modifiers: margins, paddings, alignments, background, borderRadius
  * @extendslink: https://facebook.github.io/react-native/docs/touchableopacity.html
  * @gif: https://media.giphy.com/media/xULW8AMIgw7l31zjm8/giphy.gif
  * @example: https://github.com/wix/react-native-ui-lib/blob/master/src/components/touchableOpacity/index.js
  */
-export default class TouchableOpacity extends BaseComponent {
+export default class TouchableOpacity extends PureBaseComponent {
   static displayName = 'TouchableOpacity';
 
   static propTypes = {
+    /**
+     * background color for TouchableOpacity
+     */
+    backgroundColor: PropTypes.string,
     /**
      * throttle time in MS for onPress callback
      */
@@ -26,7 +31,7 @@ export default class TouchableOpacity extends BaseComponent {
     /**
      * Apply background color on TouchableOpacity when active (press is on)
      */
-    activeBackgroundColor: PropTypes.string,
+    activeBackgroundColor: PropTypes.string
   };
 
   constructor(props) {
@@ -40,24 +45,44 @@ export default class TouchableOpacity extends BaseComponent {
   }
 
   state = {
-    active: false,
+    ...this.state,
+    active: false
   };
+
+  getAccessibilityInfo() {
+    const {disabled} = this.props;
+    return {
+      accessibilityRole: 'button',
+      accessibilityStates: disabled ? ['disabled'] : undefined
+    };
+  }
 
   onPressIn(...args) {
     this.setState({
-      active: true,
+      active: true
     });
     _.invoke(this.props, 'onPressIn', ...args);
   }
 
   onPressOut(...args) {
     this.setState({
-      active: false,
+      active: false
     });
     _.invoke(this.props, 'onPressOut', ...args);
   }
 
-  get backgroundStyle() {
+  get backgroundColorStyle() {
+    const {backgroundColor: modifiersBackgroundColor} = this.state;
+    const {backgroundColor: propsBackgroundColor} = this.getThemeProps();
+
+    const backgroundColor = propsBackgroundColor || modifiersBackgroundColor;
+
+    if (backgroundColor) {
+      return {backgroundColor};
+    }
+  }
+
+  get activeBackgroundStyle() {
     const {active} = this.state;
     const {activeBackgroundColor} = this.props;
 
@@ -67,20 +92,32 @@ export default class TouchableOpacity extends BaseComponent {
   }
 
   render() {
-    const {throttle, ...others} = this.getThemeProps();
+    const {borderRadius, paddings, margins, alignments, flexStyle} = this.state;
+    const {style, ...others} = this.getThemeProps();
 
     return (
       <RNTouchableOpacity
+        {...this.getAccessibilityInfo()}
         {...others}
         onPress={this.onPress}
         onPressIn={this.onPressIn}
         onPressOut={this.onPressOut}
-        style={[this.props.style, this.backgroundStyle]}
+        style={[
+          this.backgroundColorStyle,
+          borderRadius && {borderRadius},
+          flexStyle,
+          paddings,
+          margins,
+          alignments,
+          style,
+          this.activeBackgroundStyle
+        ]}
+        ref={this.setRef}
       />
     );
   }
 
   onPress() {
-    _.invoke(this.props, 'onPress');
+    _.invoke(this.props, 'onPress', this.props);
   }
 }

@@ -1,8 +1,8 @@
-import React from 'react';
-import {Modal as RNModal, TouchableWithoutFeedback, StyleSheet} from 'react-native';
-import PropTypes from 'prop-types';
 import _ from 'lodash';
-import {BlurView} from 'react-native-blur';
+import PropTypes from 'prop-types';
+import React from 'react';
+import {StyleSheet, Modal as RNModal, TouchableWithoutFeedback} from 'react-native';
+import {BlurView} from '@react-native-community/blur';
 import {Constants} from '../../helpers';
 import {BaseComponent} from '../../commons';
 import TopBar from './TopBar';
@@ -33,16 +33,21 @@ export default class Modal extends BaseComponent {
     /**
      * the background color of the overlay
      */
-    overlayBackgroundColor: PropTypes.string,
+    overlayBackgroundColor: PropTypes.string
   };
 
   renderTouchableOverlay() {
     const {overlayBackgroundColor, onBackgroundPress} = this.props;
     if (_.isFunction(onBackgroundPress) || !!overlayBackgroundColor) {
       return (
-        <View style={[styles.touchableOverlay, {backgroundColor: overlayBackgroundColor}]}>
+        <View
+          accessible
+          accessibilityLabel="Dismiss"
+          accessibilityRole="button"
+          style={[styles.touchableOverlay, {backgroundColor: overlayBackgroundColor}]}
+        >
           <TouchableWithoutFeedback onPress={onBackgroundPress}>
-            <View flex />
+            <View flex/>
           </TouchableWithoutFeedback>
         </View>
       );
@@ -67,8 +72,8 @@ export default class Modal extends BaseComponent {
 
 const styles = StyleSheet.create({
   touchableOverlay: {
-    ...StyleSheet.absoluteFillObject,
-  },
+    ...StyleSheet.absoluteFillObject
+  }
 });
 
 Modal.TopBar = TopBar;

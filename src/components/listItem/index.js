@@ -1,7 +1,8 @@
-import React from 'react';
+import _ from 'lodash';
 import PropTypes from 'prop-types';
+import React from 'react';
 import {StyleSheet} from 'react-native';
-import * as Animatable from 'react-native-animatable';
+import {View as AnimatableView} from 'react-native-animatable';
 import {Colors} from '../../style';
 import {BaseComponent} from '../../commons';
 import TouchableOpacity from '../../components/touchableOpacity';
@@ -16,7 +17,6 @@ import ListItemPart from './ListItemPart';
  * @example: https://github.com/wix/react-native-ui-lib/blob/master/demo/src/screens/listScreens/BasicListScreen.js
  */
 class ListItem extends BaseComponent {
-
   static displayName = 'ListItem';
 
   static propTypes = {
@@ -39,28 +39,34 @@ class ListItem extends BaseComponent {
     /**
      * The container element to wrap the ListItem
      */
-    containerElement: PropTypes.func,
-    /**
-     * Use to identify the ListItem in tests
-     */
-    testID: PropTypes.string,
+    containerElement: PropTypes.func
   };
 
   static defaultProps = {
     height: 63,
     containerElement: TouchableOpacity,
-    underlayColor: Colors.dark70,
+    underlayColor: Colors.dark70
   };
 
   constructor(props) {
     super(props);
     this.state = {
-      pressed: false,
+      pressed: false
     };
   }
 
   generateStyles() {
     this.styles = createStyles(this.props);
+  }
+
+  onHideUnderlay() {
+    this.setPressed(false);
+  }
+  onShowUnderlay() {
+    this.setPressed(true);
+  }
+  setPressed(isPressed) {
+    this.setState({pressed: isPressed});
   }
 
   render() {
@@ -75,11 +81,15 @@ class ListItem extends BaseComponent {
       ...others
     } = this.props;
     const {pressed} = this.state;
-    // const containerStyle = this.extractContainerStyle(this.props);
-    const animationProps = this.extractAnimationProps();
-    const Container = (onPress || onLongPress) ? containerElement : View;
-
     const pressedStyle = {backgroundColor: underlayColor};
+    const Container = onPress || onLongPress ? containerElement : View;
+
+    const animationProps = this.extractAnimationProps();
+    const InnerContainer = !_.isEmpty(animationProps) ? AnimatableView : View;
+    if (!_.isEmpty(animationProps)) {
+      console.warn('ListItem component will soon stop supporting animationProps.' +
+          'Please wrap your ListItem component with your own animation component, such as Animatable.View',);
+    }
 
     return (
       <Container
@@ -87,17 +97,14 @@ class ListItem extends BaseComponent {
         style={[this.styles.container, containerStyle]}
         onPress={onPress}
         onLongPress={onLongPress}
-        onHideUnderlay={() => this.setState({pressed: false})}
-        onShowUnderlay={() => this.setState({pressed: true})}
+        onHideUnderlay={this.onHideUnderlay}
+        onShowUnderlay={this.onShowUnderlay}
         testID={testID}
         {...others}
       >
-        <Animatable.View
-          {...animationProps}
-          style={[this.styles.innerContainer, style, pressed && pressedStyle]}
-        >
+        <InnerContainer {...animationProps} style={[this.styles.innerContainer, style, pressed && pressedStyle]}>
           {this.props.children}
-        </Animatable.View>
+        </InnerContainer>
       </Container>
     );
   }
@@ -106,12 +113,12 @@ class ListItem extends BaseComponent {
 function createStyles({height}) {
   return StyleSheet.create({
     container: {
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.white
     },
     innerContainer: {
       flexDirection: 'row',
-      height,
-    },
+      height
+    }
   });
 }
 

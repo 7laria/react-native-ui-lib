@@ -3,10 +3,9 @@ import PropTypes from 'prop-types';
 import React from 'react';
 import {StyleSheet, ViewPropTypes, Keyboard} from 'react-native';
 import BaseInput from './BaseInput';
-import TextInput from './TextInput';
+import TextField from './TextField';
 import View from '../view';
 import Text from '../text';
-
 
 /**
  * @description: Mask Input to create custom looking inputs with custom formats
@@ -18,7 +17,7 @@ import Text from '../text';
 export default class MaskedInput extends BaseInput {
   static displayName = 'MaskedInput';
   static propTypes = {
-    ...TextInput.propTypes,
+    ...TextField.propTypes,
     /**
      * callback for rendering the custom input out of the value returns from the actual input
      */
@@ -26,7 +25,7 @@ export default class MaskedInput extends BaseInput {
     /**
      * container style for the masked input container
      */
-    containerStyle: ViewPropTypes.style,
+    containerStyle: ViewPropTypes.style
   };
 
   componentDidMount() {
@@ -53,11 +52,11 @@ export default class MaskedInput extends BaseInput {
 
   render() {
     const {containerStyle} = this.props;
-    const TextInputProps = TextInput.extractOwnProps(this.props, ['containerStyle', 'style']);
-    
+    const TextInputProps = TextField.extractOwnProps(this.props, ['containerStyle', 'style']);
+
     return (
       <View style={containerStyle}>
-        <TextInput
+        <TextField
           {...this.props}
           ref={r => (this.input = r)}
           containerStyle={styles.hiddenInputContainer}
@@ -70,9 +69,7 @@ export default class MaskedInput extends BaseInput {
           multiline={false}
           onChangeText={this.onChangeText}
         />
-        <View style={styles.maskedInputWrapper}>
-          {this.renderMaskedText()}
-        </View>
+        <View style={styles.maskedInputWrapper}>{this.renderMaskedText()}</View>
       </View>
     );
   }
@@ -81,14 +78,14 @@ export default class MaskedInput extends BaseInput {
 const styles = StyleSheet.create({
   hiddenInputContainer: {
     ...StyleSheet.absoluteFillObject,
-    zIndex: 1,
+    zIndex: 1
   },
   hiddenInput: {
     color: 'transparent',
     backgroundColor: 'transparent',
-    height: undefined,
+    height: undefined
   },
   maskedInputWrapper: {
-    zIndex: 0,
-  },
+    zIndex: 0
+  }
 });

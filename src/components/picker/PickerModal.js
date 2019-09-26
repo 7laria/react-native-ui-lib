@@ -1,14 +1,14 @@
-import React from 'react';
-import PropTypes from 'prop-types';
-import {StyleSheet, FlatList, TextInput} from 'react-native';
 import _ from 'lodash';
+import PropTypes from 'prop-types';
+import React from 'react';
+import {StyleSheet, FlatList, TextInput} from 'react-native';
 import {Constants} from '../../helpers';
+import {Typography, Colors} from '../../style';
+import Assets from '../../assets';
 import {BaseComponent} from '../../commons';
 import {Modal} from '../../screensComponents';
 import View from '../view';
 import Image from '../image';
-import {Typography, Colors} from '../../style';
-import Assets from '../../assets';
 
 class PickerModal extends BaseComponent {
   static displayName = 'IGNORE';
@@ -21,23 +21,25 @@ class PickerModal extends BaseComponent {
     searchStyle: PropTypes.shape({
       color: PropTypes.string,
       placeholderTextColor: PropTypes.string,
-      selectionColor: PropTypes.string,
+      selectionColor: PropTypes.string
     }),
     searchPlaceholder: PropTypes.string,
     onSearchChange: PropTypes.func,
     renderCustomSearch: PropTypes.func,
-    listProps: PropTypes.object,
+    listProps: PropTypes.object
   };
 
   static defaultProps = {
     searchPlaceholder: 'Search...',
-    searchStyle: {},
+    searchStyle: {}
   };
 
   state = {
     scrollHeight: undefined,
-    scrollContentHeight: undefined,
+    scrollContentHeight: undefined
   };
+
+  keyExtractor = (item, index) => index.toString();
 
   generateStyles() {
     this.styles = createStyles(this.props);
@@ -45,7 +47,7 @@ class PickerModal extends BaseComponent {
 
   renderSearchInput() {
     const {showSearch, searchStyle, searchPlaceholder, onSearchChange, renderCustomSearch} = this.props;
-    
+
     if (showSearch) {
       if (_.isFunction(renderCustomSearch)) {
         return renderCustomSearch(this.props);
@@ -53,7 +55,7 @@ class PickerModal extends BaseComponent {
 
       return (
         <View style={this.styles.searchInputContainer}>
-          <Image style={this.styles.searchIcon} source={Assets.icons.search} />
+          <Image style={this.styles.searchIcon} source={Assets.icons.search}/>
           <TextInput
             ref={r => (this.search = r)}
             style={[this.styles.searchInput, {color: searchStyle.color}]}
@@ -69,6 +71,11 @@ class PickerModal extends BaseComponent {
     }
   }
 
+  renderItem = ({index}) => {
+    const {children} = this.props;
+    return React.Children.toArray(children)[index];
+  };
+
   render() {
     const {visible, enableModalBlur, topBarProps, listProps, children} = this.props;
     return (
@@ -79,15 +86,13 @@ class PickerModal extends BaseComponent {
         visible={visible}
         onRequestClose={topBarProps.onCancel}
       >
-        <Modal.TopBar {...topBarProps} />
+        <Modal.TopBar {...topBarProps}/>
         {this.renderSearchInput()}
 
         <FlatList
           data={_.times(React.Children.count(children))}
-          renderItem={({index}) => {
-            return React.Children.toArray(children)[index];
-          }}
-          keyExtractor={(item, index) => index.toString()}
+          renderItem={this.renderItem}
+          keyExtractor={this.keyExtractor}
           {...listProps}
         />
       </Modal>
@@ -103,17 +108,17 @@ function createStyles() {
       alignItems: 'center',
       paddingLeft: 16,
       borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: Colors.dark60,
+      borderBottomColor: Colors.dark60
     },
     searchIcon: {
-      marginRight: 12,
+      marginRight: 12
     },
     searchInput: {
       height: 60,
       paddingRight: 16,
       flex: 1,
-      ...Typography.text70,
-    },
+      ...Typography.text70
+    }
   });
 }
 

@@ -1,7 +1,7 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import {StyleSheet} from 'react-native';
-import {BlurView} from 'react-native-blur';
+import {BlurView} from '@react-native-community/blur';
 import {BaseComponent} from '../../commons';
 import {Constants} from '../../helpers';
 import View from '../view';
@@ -14,6 +14,11 @@ import View from '../view';
  * @example: https://github.com/wix/react-native-ui-lib/blob/master/demo/src/screens/componentScreens/CardsScreen.js
  */
 export default class CardSection extends BaseComponent {
+  constructor(props) {
+    super(props);
+
+    console.warn('uilib will depreciate "Card.Section" soon, please use "View" component with modifiers instead');
+  }
 
   static displayName = 'Card.Section';
 
@@ -33,7 +38,7 @@ export default class CardSection extends BaseComponent {
     /**
      * style as a footer, remove bottom spacing
      */
-    footer: PropTypes.bool,
+    footer: PropTypes.bool
   };
 
   generateStyles() {
@@ -42,7 +47,7 @@ export default class CardSection extends BaseComponent {
 
   render() {
     const {enableBlur, blurOptions, style, ...others} = this.props;
-    const Container = (Constants.isIOS && enableBlur) ? BlurView : View;
+    const Container = Constants.isIOS && enableBlur ? BlurView : View;
     const {paddings} = this.state;
     return (
       <Container {...blurOptions} style={[this.styles.container, paddings, style]} {...others}>
@@ -58,10 +63,10 @@ function createStyles({body, footer}) {
       flexDirection: body ? undefined : 'row',
       justifyContent: body ? undefined : 'space-between',
       alignItems: body ? undefined : 'center',
-      marginBottom: (footer || body) ? undefined : 10,
+      marginBottom: footer || body ? undefined : 10,
       padding: body ? 21 : undefined,
       flexGrow: 1,
-      flexShrink: 1,
-    },
+      flexShrink: 1
+    }
   });
 }

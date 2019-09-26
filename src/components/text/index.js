@@ -1,7 +1,7 @@
 import PropTypes from 'prop-types';
 import React from 'react';
 import {Text as RNText, StyleSheet} from 'react-native';
-import {BaseComponent} from '../../commons';
+import {PureBaseComponent} from '../../commons';
 
 /**
  * @description: A wrapper for Text component with extra functionality like modifiers support
@@ -9,11 +9,11 @@ import {BaseComponent} from '../../commons';
  * @extendslink: https://facebook.github.io/react-native/docs/text.html
  * @modifiers: margins, color, typography
  */
-export default class Text extends BaseComponent {
+export default class Text extends PureBaseComponent {
   static displayName = 'Text';
   static propTypes = {
     ...RNText.propTypes,
-    ...BaseComponent.propTypes,
+    // ...PureBaseComponent.propTypes,
     /**
      * color of the text
      */
@@ -25,8 +25,7 @@ export default class Text extends BaseComponent {
     /**
      * whether to change the text to uppercase
      */
-    uppercase: PropTypes.bool,
-    testID: PropTypes.string,
+    uppercase: PropTypes.bool
   };
 
   // static defaultProps = {
@@ -52,12 +51,12 @@ export default class Text extends BaseComponent {
       color && {color},
       margins,
       center && {textAlign: 'center'},
-      style,
+      style
     ];
     const children = uppercase ? this.transformToUppercase(this.props.children) : this.props.children;
-    
+
     return (
-      <RNText {...others} style={textStyle} ref={r => (this.text = r)}>
+      <RNText {...others} style={textStyle} ref={this.setRef}>
         {children}
       </RNText>
     );
@@ -69,20 +68,13 @@ export default class Text extends BaseComponent {
     }
     return items;
   }
-
-  measure(...args) {
-    this.text.measure(...args);
-  }
-
-  measureInWindow(...args) {
-    this.text.measureInWindow(...args);
-  }
 }
 
 function createStyles() {
   return StyleSheet.create({
     container: {
       backgroundColor: 'transparent',
-    },
+      textAlign: 'left'
+    }
   });
 }

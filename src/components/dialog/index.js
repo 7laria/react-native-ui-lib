@@ -1,44 +1,42 @@
 import _ from 'lodash';
 import PropTypes from 'prop-types';
 import React from 'react';
-import {StyleSheet, TouchableWithoutFeedback} from 'react-native';
-import * as Animatable from 'react-native-animatable';
-import GestureRecognizer, {swipeDirections} from 'react-native-swipe-gestures';
-import {BaseComponent} from '../../commons';
+import {StyleSheet} from 'react-native';
+import {Constants} from '../../helpers';
 import {Colors} from '../../style';
+import {BaseComponent} from '../../commons';
 import Modal from '../../screensComponents/modal';
 import View from '../view';
+import PanListenerView from '../panningViews/panListenerView';
+import DialogDismissibleView from './DialogDismissibleView';
+import PanningProvider from '../panningViews/panningProvider';
+import DialogDeprecated from './dialogDeprecated';
 
-/*eslint-disable*/
+// TODO: KNOWN ISSUES
+// 1. iOS pressing on the background while enter animation is happening will not call onDismiss
+//    Touch events are not registered?
+// 2. SafeArea is transparent
+// 3. Check why we need the state change in DialogDismissibleView -> onLayout -> animateTo
+
 /**
  * @description: Dialog component for displaying custom content inside a popup dialog
- * @notes: Use alignment modifiers to control the dialog positon (top, bottom, centerV, centerH, etc... by default the dialog is align to center)
+ * @notes: Use alignment modifiers to control the dialog position
+ * (top, bottom, centerV, centerH, etc... by default the dialog is aligned to center)
  * @modifiers: alignment
  * @example: https://github.com/wix/react-native-ui-lib/blob/master/demo/src/screens/componentScreens/DialogScreen.js
  * @gif: https://media.giphy.com/media/9S58XdLCoUiLzAc1b1/giphy.gif
  */
-/*eslint-enable*/
-
-const SWIPE_DIRECTIONS = {
-  UP: 'up',
-  DOWN: 'down',
-};
-
 class Dialog extends BaseComponent {
-  static displayName = 'Dialog'
+  static displayName = 'Dialog';
   static propTypes = {
     /**
      * Control visibility of the dialog
      */
     visible: PropTypes.bool,
     /**
-     * dismiss callback for when clicking on the background
+     * Dismiss callback for when clicking on the background
      */
     onDismiss: PropTypes.func,
-    /**
-     * the direction of the swipe to dismiss the dialog (default is 'down')
-     */
-    dismissSwipeDirection: PropTypes.oneOf(Object.values(SWIPE_DIRECTIONS)),
     /**
      * The color of the overlay background
      */
@@ -48,111 +46,204 @@ class Dialog extends BaseComponent {
      */
     width: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
     /**
-     * The dialog height (default: 70%)
+     * The dialog height (default: undefined)
      */
     height: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
     /**
-     * the animation configuration to pass to the dialog (based on react-native-animatable,
-     * ex. {animation, duration, easing,..})
+     * The direction of the allowed pan (default is DOWN)
+     * Types: UP, DOWN, LEFT and RIGHT (using PanningProvider.Directions.###)
      */
-    animationConfig: PropTypes.object,
+    panDirection: PropTypes.oneOf(Object.values(PanningProvider.Directions)),
     /**
-     * The dialog container style
+     * Whether or not to handle SafeArea
      */
-    containerStyle: PropTypes.oneOfType([PropTypes.object, PropTypes.number, PropTypes.array]),
+    useSafeArea: PropTypes.bool,
+    /**
+     * Called once the modal has been dissmissed (iOS only, modal only)
+     */
+    onModalDismissed: PropTypes.func,
+    /**
+     * If this is added only the header will be pannable;
+     * this allows for scrollable content (the children of the dialog)
+     * props are transferred to the renderPannableHeader
+     */
+    renderPannableHeader: PropTypes.func,
+    /**
+     * Migration flag, send true to use the new (and improved) Dialog, default is false
+     */
+    migrate: PropTypes.bool
   };
 
   static defaultProps = {
+    migrate: false,
     overlayBackgroundColor: Colors.rgba(Colors.dark10, 0.6),
-    width: '90%',
-    height: '70%',
-    dismissSwipeDirection: SWIPE_DIRECTIONS.DOWN,
+    width: '90%'
   };
 
-  static swipeDirections = SWIPE_DIRECTIONS;
+  constructor(props) {
+    super(props);
 
-  generateStyles() {
-    this.styles = createStyles(this.props);
-  }
-
-  getAnimationConfig() {
-    const {animationConfig} = this.props;
-    return {
-      animation: 'slideInUp',
-      duration: 400,
-      useNativeDriver: true,
-      ...animationConfig,
+    this.state = {
+      alignments: this.state.alignments,
+      orientationKey: undefined,
+      modalVisibility: props.visible,
+      dialogVisibility: props.visible
     };
-  }
 
-  onSwipe(gestureName) {
-    const {SWIPE_UP, SWIPE_DOWN} = swipeDirections;
-    const {dismissSwipeDirection} = this.props;
-
-    switch (gestureName) {
-      case SWIPE_UP:
-        if (dismissSwipeDirection === SWIPE_DIRECTIONS.UP) {
-          _.invoke(this.props, 'onDismiss');
-        }
-        break;
-      case SWIPE_DOWN:
-        if (dismissSwipeDirection === SWIPE_DIRECTIONS.DOWN) {
-          _.invoke(this.props, 'onDismiss');
-        }
-        break;
-      default:
-        break;
+    if (props.migrate) {
+      this.setAlignment();
     }
   }
 
-  render() {
-    const {visible, overlayBackgroundColor, style, onDismiss} = this.getThemeProps();
+  componentDidMount() {
+    Constants.addDimensionsEventListener(this.onOrientationChange);
+  }
+
+  componentWillUnmount() {
+    Constants.removeDimensionsEventListener(this.onOrientationChange);
+  }
+
+  UNSAFE_componentWillReceiveProps(nextProps) {
+    const {visible: nexVisible} = nextProps;
+    const {visible} = this.props;
+
+    if (nexVisible && !visible) {
+      this.setState({modalVisibility: true, dialogVisibility: true});
+    } else if (visible && !nexVisible) {
+      this.hideDialogView();
+    }
+  }
+
+  onOrientationChange = () => {
+    const orientationKey = Constants.orientation;
+    if (this.state.orientationKey !== orientationKey) {
+      this.setState({orientationKey});
+    }
+  };
+
+  generateStyles() {
+    if (this.props.migrate) {
+      this.styles = createStyles(this.props);
+    }
+  }
+
+  setAlignment() {
     const {alignments} = this.state;
-    const centerByDefault = _.isEmpty(alignments);
-    const config = {
-      velocityThreshold: 0.3,
-      directionalOffsetThreshold: 80,
-    };
+    if (_.isEmpty(alignments)) {
+      this.styles.alignments = this.styles.centerContent;
+    } else {
+      this.styles.alignments = alignments;
+    }
+  }
+
+  onDismiss = () => {
+    this.setState({modalVisibility: false}, () => _.invoke(this.props, 'onDismiss', this.props));
+  };
+
+  hideDialogView = () => {
+    this.setState({dialogVisibility: false});
+  };
+
+  renderPannableHeader = directions => {
+    const {renderPannableHeader, ...others} = this.props;
+    if (renderPannableHeader) {
+      return <PanListenerView directions={directions}>{renderPannableHeader(others)}</PanListenerView>;
+    }
+  };
+
+  renderDialogView = () => {
+    const {children, renderPannableHeader, style, panDirection} = this.props;
+    const {dialogVisibility} = this.state;
+    const Container = renderPannableHeader ? View : PanListenerView;
+
+    return (
+      <View style={this.styles.dialogViewSize} pointerEvents="box-none">
+        <PanningProvider>
+          <DialogDismissibleView
+            direction={panDirection}
+            visible={dialogVisibility}
+            onDismiss={this.onDismiss}
+            containerStyle={this.styles.flexType}
+            style={this.styles.flexType}
+          >
+            <Container directions={[panDirection]} style={[this.styles.overflow, this.styles.flexType, style]}>
+              {this.renderPannableHeader([panDirection])}
+              {children}
+            </Container>
+          </DialogDismissibleView>
+        </PanningProvider>
+      </View>
+    );
+  };
+
+  // TODO: renderOverlay {_.invoke(this.props, 'renderOverlay')}
+  renderDialogContainer = () => {
+    const {useSafeArea, bottom} = this.props;
+    const addBottomSafeArea = Constants.isIphoneX && (useSafeArea && bottom);
+    const bottomInsets = Constants.getSafeAreaInsets().bottom - 8; // TODO: should this be here or in the input style?
+
+    return (
+      <View
+        useSafeArea={useSafeArea}
+        style={[this.styles.centerHorizontal, this.styles.alignments, this.styles.container]}
+        pointerEvents="box-none"
+      >
+        {this.renderDialogView()}
+        {addBottomSafeArea && <View style={{marginTop: bottomInsets}}/>}
+      </View>
+    );
+  };
+
+  renderModal = () => {
+    const {orientationKey, modalVisibility} = this.state;
+    const {overlayBackgroundColor, onModalDismissed, supportedOrientations} = this.getThemeProps();
 
     return (
       <Modal
+        key={orientationKey}
         transparent
-        visible={visible}
+        visible={modalVisibility}
         animationType={'fade'}
-        onBackgroundPress={onDismiss}
-        onRequestClose={onDismiss}
+        onBackgroundPress={this.hideDialogView}
+        onRequestClose={this.hideDialogView}
         overlayBackgroundColor={overlayBackgroundColor}
+        onDismiss={onModalDismissed}
+        supportedOrientations={supportedOrientations}
       >
-        <View center={centerByDefault} style={[this.styles.overlay, alignments]} pointerEvents="box-none">
-          <Animatable.View style={[this.styles.dialogContainer, style]} {...this.getAnimationConfig()}>
-            <GestureRecognizer
-              onSwipe={(direction, state) => this.onSwipe(direction, state)}
-              config={config}
-              style={this.styles.gestureContainer}
-            >
-              <TouchableWithoutFeedback>
-                {this.props.children}
-              </TouchableWithoutFeedback>
-            </GestureRecognizer>
-          </Animatable.View>
-        </View>
+        {this.renderDialogContainer()}
       </Modal>
     );
+  };
+
+  render() {
+    const {migrate, ...others} = this.getThemeProps();
+
+    if (migrate) {
+      return this.renderModal();
+    } else {
+      return <DialogDeprecated {...others}/>;
+    }
   }
 }
 
-function createStyles({width, height}) {
+function createStyles(props) {
+  const {width, height} = props;
+  const flexType = height ? {flex: 1} : {flex: 0};
   return StyleSheet.create({
-    overlay: {
-      flex: 1,
+    dialogViewSize: {width, height},
+    flexType,
+    container: {
+      flex: 1
     },
-    dialogContainer: {
-      width,
-      height,
+    centerHorizontal: {
+      alignItems: 'center'
     },
-    gestureContainer: {
-      flexGrow: 1,
+    centerContent: {
+      justifyContent: 'center'
     },
+    overflow: {
+      overflow: 'hidden'
+    }
   });
 }
 

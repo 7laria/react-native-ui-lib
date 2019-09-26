@@ -1,7 +1,7 @@
 import PropTypes from 'prop-types';
-import React from 'react';
-import {View as RNView, StyleSheet, ViewPropTypes, SafeAreaView} from 'react-native';
-import {BaseComponent} from '../../commons';
+import React, {PureComponent} from 'react';
+import {View as RNView, ViewPropTypes, SafeAreaView, Animated} from 'react-native';
+import {asBaseComponent, forwardRef} from '../../commons';
 import * as Constants from '../../helpers/Constants';
 
 /**
@@ -10,66 +10,61 @@ import * as Constants from '../../helpers/Constants';
  * @extendslink: https://facebook.github.io/react-native/docs/view.html
  * @modifiers: margins, paddings, alignments, background, borderRadius
  */
-export default class View extends BaseComponent {
+class View extends PureComponent {
   static displayName = 'View';
 
   static propTypes = {
     ...ViewPropTypes,
-    ...BaseComponent.propTypes,
+    // ...BaseComponent.propTypes,
     /**
-     * if true, will render as SafeAreaView
+     * If true, will render as SafeAreaView
      */
     useSafeArea: PropTypes.bool,
+    /**
+     * Use Animate.View as a container
+     */
+    animated: PropTypes.bool
   };
 
-  generateStyles() {
-    this.styles = createStyles(this.props);
+  constructor(props) {
+    super(props);
+
+    this.Container = props.useSafeArea && Constants.isIOS ? SafeAreaView : RNView;
+    if (props.animated) {
+      this.Container = Animated.createAnimatedComponent(this.Container);
+    }
   }
 
+  // TODO: do we need this?
   setNativeProps(nativeProps) {
     this._root.setNativeProps(nativeProps); // eslint-disable-line
   }
 
-  renderView() {
-    const {backgroundColor, borderRadius, paddings, margins, alignments, flexStyle} = this.state;
-    const {useSafeArea, style, left, top, right, bottom, flex: propsFlex, ...others} = this.getThemeProps();
-    const Element = (useSafeArea && Constants.isIOS) ? SafeAreaView : RNView;
+  render() {
+    // (!) extract left, top, bottom... props to avoid passing them on Android
+    // eslint-disable-next-line
+    const {modifiers, style, left, top, right, bottom, flex: propsFlex, forwardedRef, ...others} = this.props;
+    const {backgroundColor, borderRadius, paddings, margins, alignments, flexStyle} = modifiers;
+    const Element = this.Container;
 
     return (
       <Element
         {...others}
         style={[
-          this.styles.container,
           backgroundColor && {backgroundColor},
           borderRadius && {borderRadius},
           flexStyle,
           paddings,
           margins,
           alignments,
-          style,
+          style
         ]}
-        ref={r => (this.view = r)}
+        ref={forwardedRef}
       >
         {this.props.children}
       </Element>
     );
   }
-
-  render() {
-    return this.renderView();
-  }
-
-  measure(...args) {
-    this.view.measure(...args);
-  }
-
-  measureInWindow(...args) {
-    this.view.measureInWindow(...args);
-  }
 }
 
-function createStyles() {
-  return StyleSheet.create({
-    container: {},
-  });
-}
+export default asBaseComponent(forwardRef(View));

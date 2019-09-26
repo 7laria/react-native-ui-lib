@@ -1,20 +1,36 @@
-import React from 'react';
-import PropTypes from 'prop-types';
-import {StyleSheet, ViewPropTypes, TouchableOpacity} from 'react-native';
 import _ from 'lodash';
-import {BaseComponent} from '../../commons';
-import {Constants} from '../../helpers';
-import {Colors, BorderRadiuses} from '../../style';
+import PropTypes from 'prop-types';
+import React from 'react';
+import {StyleSheet, ViewPropTypes, TouchableOpacity} from 'react-native';
+import {Colors} from '../../style';
+import {PureBaseComponent} from '../../commons';
+import Badge, {BADGE_SIZES} from '../badge';
 import View from '../view';
 import Text from '../text';
 import Image from '../image';
+import AnimatedImage from '../animatedImage';
+
+const deprecatedProps = [
+  {old: 'isOnline', new: 'badgeProps.backgroundColor'},
+  {old: 'status', new: 'badgeProps.backgroundColor'}
+];
 
 export const STATUS_MODES = {
   ONLINE: 'ONLINE',
   OFFLINE: 'OFFLINE',
   AWAY: 'AWAY',
-  NONE: 'NONE',
+  NONE: 'NONE'
 };
+
+export const BADGE_POSITIONS = {
+  TOP_RIGHT: 'TOP_RIGHT',
+  TOP_LEFT: 'TOP_LEFT',
+  BOTTOM_RIGHT: 'BOTTOM_RIGHT',
+  BOTTOM_LEFT: 'BOTTOM_LEFT'
+};
+
+const DEFAULT_BADGE_SIZE = 'pimpleBig';
+const DEFAULT_BADGE_POSITION = BADGE_POSITIONS.TOP_RIGHT;
 
 /**
  * @description: Avatar component for displaying user profile images
@@ -24,27 +40,50 @@ export const STATUS_MODES = {
  * @image: https://user-images.githubusercontent.com/33805983/34480603-197d7f64-efb6-11e7-9feb-db8ba756f055.png
  * @example: https://github.com/wix/react-native-ui-lib/blob/master/demo/src/screens/componentScreens/AvatarsScreen.js
  */
-export default class Avatar extends BaseComponent {
+export default class Avatar extends PureBaseComponent {
+  constructor(props) {
+    super(props);
+
+    deprecatedProps.forEach(prop => {
+      if (props[prop.old]) {
+        console.warn(`"Avatar's ${prop.old}" property is deprecated, please use "${prop.new}"`);
+      }
+    });
+  }
+
   static displayName = 'Avatar';
   static modes = STATUS_MODES;
+  static badgePosition = BADGE_POSITIONS;
   static propTypes = {
+    /**
+     * Adds fade in animation when Avatar image loads
+     */
+    animate: PropTypes.bool,
     /**
      * Background color for Avatar
      */
     backgroundColor: PropTypes.string,
     /**
+     * Badge location on Avatar
+     */
+    badgePosition: PropTypes.oneOf(Object.values(BADGE_POSITIONS)),
+    /**
+     * Badge props passed down to Badge component
+     */
+    badgeProps: PropTypes.object,
+    /**
      * Additional spacing styles for the container
      */
     containerStyle: ViewPropTypes.style,
     /**
-    * The image source (external or assets)
+     * The image source (external or assets)
      */
     imageSource: PropTypes.oneOfType([PropTypes.object, PropTypes.number]),
     /**
      * Image props object
      */
     imageProps: PropTypes.object,
-     /**
+    /**
      * Image style object used to pass additional style props
      * by components which render image
      */
@@ -85,6 +124,10 @@ export default class Avatar extends BaseComponent {
      */
     ribbonLabelStyle: Text.propTypes.style,
     /**
+     * Custom ribbon
+     */
+    customRibbon: PropTypes.element,
+    /**
      * Determine if to show online badge
      */
     isOnline: PropTypes.bool,
@@ -97,65 +140,118 @@ export default class Avatar extends BaseComponent {
      */
     size: PropTypes.number,
     /**
-     * Use to identify the avatar in tests
-     */
-    testID: PropTypes.string,
-    /**
      * Press handler
      */
-    onPress: PropTypes.func,
+    onPress: PropTypes.func
   };
 
   static defaultProps = {
+    animate: false,
     backgroundColor: Colors.dark80,
     size: 50,
     labelColor: Colors.dark10,
-    status: STATUS_MODES.NONE,
+    badgePosition: DEFAULT_BADGE_POSITION
   };
 
   generateStyles() {
     this.styles = createStyles(this.props);
   }
 
+  getContainerStyle() {
+    const {size} = this.props;
+
+    return {
+      width: size,
+      height: size,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: size / 2
+    };
+  }
+
+  getInitialsContainer() {
+    const {size} = this.props;
+    return {
+      ...StyleSheet.absoluteFillObject,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: size / 2
+    };
+  }
+
+  getRibbonStyle() {
+    const {size} = this.props;
+
+    return {
+      position: 'absolute',
+      top: '10%',
+      left: size / 1.7,
+      borderRadius: size / 2
+    };
+  }
+
   getStatusBadgeColor(status) {
     switch (status) {
-      case Avatar.modes.NONE:
-        return null;
       case Avatar.modes.AWAY:
         return Colors.yellow30;
       case Avatar.modes.ONLINE:
         return Colors.green30;
       case Avatar.modes.OFFLINE:
         return Colors.dark60;
+      case Avatar.modes.NONE:
       default:
         return null;
     }
   }
 
-  getBadgeColor(isOnline, status) {
-    const onlineOverride = (status === STATUS_MODES.NONE) ? isOnline : false;
-    const badgeColor = onlineOverride ? Colors.green30 : this.getStatusBadgeColor(status);
-    return badgeColor;
+  getBadgeBorderWidth = () => _.get(this.props, 'badgeProps.borderWidth', 0);
+
+  getBadgeColor() {
+    const {isOnline, status} = this.props;
+    const statusColor = this.getStatusBadgeColor(status);
+    const onlineColor = isOnline ? Colors.green30 : undefined;
+
+    return _.get(this.props, 'badgeProps.backgroundColor') || statusColor || onlineColor;
+  }
+
+  getBadgeSize = () => _.get(this.props, 'badgeProps.size', DEFAULT_BADGE_SIZE);
+
+  getBadgePosition() {
+    const {size, badgePosition} = this.props;
+    const radius = size / 2;
+    const x = Math.sqrt(radius ** 2 * 2);
+    const y = x - radius;
+    const shift = Math.sqrt(y ** 2 / 2) - (BADGE_SIZES[this.getBadgeSize()] + this.getBadgeBorderWidth() * 2) / 2;
+    const badgeLocation = _.split(_.toLower(badgePosition), '_', 2);
+    const badgeAlignment = {position: 'absolute', [badgeLocation[0]]: shift, [badgeLocation[1]]: shift};
+
+    return badgeAlignment;
   }
 
   renderBadge() {
-    const {testID, isOnline, status} = this.props;
-    const badgeColor = this.getBadgeColor(isOnline, status);
-    if (badgeColor === null) {
-      return false;
+    const {testID, badgeProps} = this.props;
+
+    if (badgeProps || this.getBadgeColor()) {
+      return (
+        <Badge
+          backgroundColor={this.getBadgeColor()}
+          size={this.getBadgeSize()}
+          {...badgeProps}
+          containerStyle={this.getBadgePosition()}
+          label={undefined}
+          testID={`${testID}.onlineBadge`}
+        />
+      );
     }
-    return (
-      <View style={this.styles.onlineBadge} testID={`${testID}.onlineBadge`}>
-        <View style={[this.styles.onlineBadgeInner, {backgroundColor: badgeColor}]} />
-      </View>
-    );
   }
 
   renderRibbon() {
-    const {ribbonLabel, ribbonStyle, ribbonLabelStyle} = this.props;
+    const {ribbonLabel, ribbonStyle, ribbonLabelStyle, customRibbon} = this.props;
     if (ribbonLabel) {
-      return (
-        <View style={[this.styles.ribbon, ribbonStyle]}>
+      return customRibbon ? (
+        <View style={this.getRibbonStyle()}>{customRibbon}</View>
+      ) : (
+        <View style={[this.getRibbonStyle(), this.styles.ribbon, ribbonStyle]}>
           <Text numberOfLines={1} text100 white style={[ribbonLabelStyle]}>
             {ribbonLabel}
           </Text>
@@ -165,17 +261,30 @@ export default class Avatar extends BaseComponent {
   }
 
   renderImage() {
-    const {imageSource, onImageLoadStart, onImageLoadEnd, onImageLoadError, testID, imageProps, imageStyle} = this.props;
+    const {
+      animate,
+      imageSource,
+      onImageLoadStart,
+      onImageLoadEnd,
+      onImageLoadError,
+      testID,
+      imageProps,
+      imageStyle
+    } = this.props;
     const hasImage = !_.isUndefined(imageSource);
+    const ImageContainer = animate ? AnimatedImage : Image;
+
     if (hasImage) {
       return (
-        <Image
-          style={[this.styles.image, imageStyle]}
+        <ImageContainer
+          animate={animate}
+          style={[this.getContainerStyle(), StyleSheet.absoluteFillObject, imageStyle]}
           source={imageSource}
           onLoadStart={onImageLoadStart}
           onLoadEnd={onImageLoadEnd}
           onError={onImageLoadError}
           testID={`${testID}.image`}
+          containerStyle={this.getContainerStyle()}
           {...imageProps}
         />
       );
@@ -184,98 +293,65 @@ export default class Avatar extends BaseComponent {
   }
 
   render() {
-    const {label, labelColor: color, imageSource, backgroundColor, onPress, containerStyle, testID} = this.props;
+    const {
+      label,
+      labelColor: color,
+      imageSource,
+      backgroundColor,
+      onPress,
+      containerStyle,
+      children,
+      size,
+      testID
+    } = this.props;
     const Container = onPress ? TouchableOpacity : View;
     const hasImage = !_.isUndefined(imageSource);
+    const fontSizeToImageSizeRatio = 0.32;
+    const fontSize = size * fontSizeToImageSizeRatio;
 
     return (
-      <Container style={[this.styles.container, containerStyle]} testID={testID} onPress={onPress}>
+      <Container
+        style={[this.getContainerStyle(), containerStyle]}
+        testID={testID}
+        onPress={onPress}
+        accessible
+        accessibilityLabel={'Avatar'}
+        accessibilityRole={onPress ? 'button' : 'image'}
+        {...this.extractAccessibilityProps()}
+      >
         <View
-          style={[this.styles.initialsContainer, {backgroundColor}, hasImage && this.styles.initialsContainerWithInset]}
+          style={[this.getInitialsContainer(), {backgroundColor}, hasImage && this.styles.initialsContainerWithInset]}
         >
-          <Text numberOfLines={1} style={[this.styles.initials, {color}]}>
+          <Text numberOfLines={1} style={[{fontSize}, this.styles.initials, {color}]}>
             {label}
           </Text>
         </View>
         {this.renderImage()}
         {this.renderBadge()}
         {this.renderRibbon()}
+        {children}
       </Container>
     );
   }
 }
 
-function createStyles({size, labelColor, imageSource}) {
-  const borderRadius = size / 2;
-  const fontSizeToImageSizeRatio = 0.32;
+function createStyles({labelColor}) {
   const styles = StyleSheet.create({
-    container: {
-      alignItems: 'center',
-      justifyContent: 'center',
-      width: size,
-      height: size,
-      borderRadius,
-    },
-    initialsContainer: {
-      ...StyleSheet.absoluteFillObject,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderRadius,
-    },
     initialsContainerWithInset: {
       top: 1,
       right: 1,
       bottom: 1,
-      left: 1,
+      left: 1
     },
-    /*eslint-disable*/
     initials: {
-      fontSize: size * fontSizeToImageSizeRatio,
       color: labelColor,
-      backgroundColor: 'transparent',
-    },
-    /*eslint-enable*/
-    defaultImage: {
-      width: size,
-      height: size,
-      borderRadius,
-    },
-    image: {
-      ...StyleSheet.absoluteFillObject,
-      position: 'absolute',
-      width: size,
-      height: size,
-      borderRadius,
-    },
-    onlineBadge: {
-      height: 13.5,
-      width: 13.5,
-      padding: 1.5,
-      borderRadius: 999,
-      backgroundColor: Colors.white,
-      position: 'absolute',
-      right: imageSource ? -1.5 : 0,
-      top: 4.5,
-    },
-    onlineBadgeInner: {
-      flex: 1,
-      borderRadius: 999,
-      // backgroundColor: Colors.green30,
-    },
-    fixAbsolutePosition: {
-      position: undefined,
-      left: undefined,
-      bottom: undefined,
+      backgroundColor: 'transparent'
     },
     ribbon: {
-      position: 'absolute',
-      right: Constants.isIOS ? '-15%' : 0,
-      top: Constants.isIOS ? '-10%' : 0,
       backgroundColor: Colors.blue30,
-      borderRadius: BorderRadiuses.br100,
       paddingHorizontal: 6,
-      paddingVertical: 3,
-    },
+      paddingVertical: 3
+    }
   });
 
   return styles;

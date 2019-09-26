@@ -1,17 +1,21 @@
-import React from 'react';
-import {Image as RNImage} from 'react-native';
-import PropTypes from 'prop-types';
-import hoistNonReactStatic from 'hoist-non-react-statics';
 import _ from 'lodash';
-import {BaseComponent} from '../../commons';
+import PropTypes from 'prop-types';
+import React from 'react';
+import hoistNonReactStatic from 'hoist-non-react-statics';
+import {Image as RNImage, StyleSheet} from 'react-native';
+import {Constants} from '../../helpers';
+import {PureBaseComponent} from '../../commons';
 import Assets from '../../assets';
+import View from '../view';
+import Overlay from '../overlay';
+
 
 /**
  * @description: Image wrapper with extra functionality like source transform and assets support
  * @extends: Image
  * @extendslink: https://facebook.github.io/react-native/docs/image.html
  */
-class Image extends BaseComponent {
+class Image extends PureBaseComponent {
   static displayName = 'Image';
 
   static propTypes = {
@@ -31,11 +35,29 @@ class Image extends BaseComponent {
      * the asset tint
      */
     tintColor: PropTypes.string,
+    /**
+     * whether the image should flip horizontally on RTL locals
+     */
+    supportRTL: PropTypes.bool,
+    /**
+     * Show image as a cover, full width, image (according to aspect ratio, default: 16:8)
+     */
+    cover: PropTypes.bool,
+    /**
+     * The aspect ratio for the image
+     */
+    aspectRatio: PropTypes.number,
+    /**
+     * The type of overly to place on top of the image
+     */
+    overlayType: Overlay.propTypes.type
   };
 
   static defaultProps = {
-    assetGroup: 'icons',
+    assetGroup: 'icons'
   };
+
+  static overlayTypes = Overlay.overlayTypes;
 
   constructor(props) {
     super(props);
@@ -61,13 +83,52 @@ class Image extends BaseComponent {
     return source;
   }
 
-  render() {
+  renderImage() {
     const source = this.getImageSource();
-    const {tintColor, style, ...others} = this.getThemeProps();
-    
-    return <RNImage style={[{tintColor}, style]} {...others} source={source}/>;
+    const {tintColor, style, supportRTL, cover, aspectRatio, ...others} = this.getThemeProps();
+    const shouldFlipRTL = supportRTL && Constants.isRTL;
+
+    return (
+      <RNImage
+        style={[
+          {tintColor},
+          shouldFlipRTL && styles.rtlFlipped,
+          cover && styles.coverImage,
+          aspectRatio && {aspectRatio},
+          style
+        ]}
+        accessible
+        accessibilityRole={'image'}
+        {...others}
+        source={source}
+      />
+    );
+  }
+
+  render() {
+    const {style, overlayType} = this.getThemeProps();
+  
+    if (overlayType) {
+      return (
+        <View>
+          {this.renderImage()}
+          <Overlay style={style} type={overlayType}/>
+        </View>
+      );
+    }
+    return this.renderImage();
   }
 }
+
+const styles = StyleSheet.create({
+  rtlFlipped: {
+    transform: [{scaleX: -1}]
+  },
+  coverImage: {
+    width: Constants.screenWidth,
+    aspectRatio: 16 / 8
+  }
+});
 
 hoistNonReactStatic(Image, RNImage);
 export default Image;

@@ -1,42 +1,38 @@
-import React from 'react';
-import ReactNative, {
-  NativeModules,
-  StyleSheet,
-  ViewPropTypes,
-  Image,
-  DeviceEventEmitter,
-} from 'react-native';
-import PropTypes from 'prop-types';
 import _ from 'lodash';
-import {BaseComponent} from '../../commons';
+import PropTypes from 'prop-types';
+import React from 'react';
+import ReactNative, {NativeModules, StyleSheet, ViewPropTypes, Image, DeviceEventEmitter} from 'react-native';
 import {Constants} from '../../helpers';
-import {TextInput} from '../inputs';
-import View from '../view';
-import TouchableOpacity from '../touchableOpacity';
-import Text from '../text';
 import {Colors, BorderRadiuses, ThemeManager, Typography} from '../../style';
 import Assets from '../../assets';
+import {BaseComponent} from '../../commons';
+import View from '../view';
+import TouchableOpacity from '../touchableOpacity';
+import {TextField} from '../inputs';
+import Text from '../text';
 
-// todo: support backspace to remove tags
-// todo: support updating tags externally
-// todo: support char array as tag creators (like comma)
-// todo: add notes to Docs about the Android fix for onKeyPress
+// TODO: support updating tags externally
+// TODO: support char array as tag creators (like comma)
+// TODO: add notes to Docs about the Android fix for onKeyPress
+
+const GUTTER_SPACING = 8;
 
 /**
  * @description: Tags input component (chips)
  * @modifiers: Typography
  * @gif: https://camo.githubusercontent.com/9c2671024f60566b980638ea01b517f6fb509d0b/68747470733a2f2f6d656469612e67697068792e636f6d2f6d656469612f336f45686e374a79685431566658746963452f67697068792e676966
  * @example: https://github.com/wix/react-native-ui-lib/blob/master/demo/src/screens/componentScreens/FormScreen.js
+ * @extends: TextField
+ * @extendsLink: https://github.com/wix/react-native-ui-lib/blob/master/src/components/inputs/TextField.js
  */
 export default class TagsInput extends BaseComponent {
   static displayName = 'TagsInput';
+
   static propTypes = {
     /**
      * list of tags. can be string or custom object when implementing getLabel
      */
-    tags: PropTypes.arrayOf(
-      PropTypes.oneOfType([PropTypes.object, PropTypes.string]),
-    ),
+    tags: PropTypes.arrayOf(PropTypes.oneOfType([PropTypes.object, PropTypes.string])),
     /**
      * callback for extracting the label out of the tag item
      */
@@ -76,16 +72,16 @@ export default class TagsInput extends BaseComponent {
     /**
      * custom styling for the text input
      */
-    inputStyle: TextInput.propTypes.style,
+    inputStyle: TextField.propTypes.style,
     /**
      * should hide input underline
      */
-    hideUnderline: PropTypes.bool,
+    hideUnderline: PropTypes.bool
   };
 
   static onChangeTagsActions = {
     ADDED: 'added',
-    REMOVED: 'removed',
+    REMOVED: 'removed'
   };
 
   constructor(props) {
@@ -101,8 +97,8 @@ export default class TagsInput extends BaseComponent {
 
     this.state = {
       value: props.value,
-      tags: props.tags || [],
-      tagIndexToRemove: undefined,
+      tags: _.cloneDeep(props.tags) || [],
+      tagIndexToRemove: undefined
     };
   }
 
@@ -122,38 +118,46 @@ export default class TagsInput extends BaseComponent {
     }
   }
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     if (nextProps.tags !== this.state.tags) {
       this.setState({
-        tags: nextProps.tags,
+        tags: nextProps.tags
       });
     }
   }
 
   addTag() {
-    const {onCreateTag, disableTagAdding} = this.props;
+    const {onCreateTag, disableTagAdding} = this.getThemeProps();
     const {value, tags} = this.state;
-    if (disableTagAdding) return;
-    if (_.isEmpty(value.trim())) return;
+
+    if (disableTagAdding) {
+      return;
+    }
+    if (_.isNil(value) || _.isEmpty(value.trim())) {
+      return;
+    }
 
     const newTag = _.isFunction(onCreateTag) ? onCreateTag(value) : value;
     const newTags = [...tags, newTag];
+
     this.setState({
       value: '',
-      tags: newTags,
+      tags: newTags
     });
     _.invoke(this.props, 'onChangeTags', newTags, TagsInput.onChangeTagsActions.ADDED, newTag);
-    this.input.clear();
+    this.clear();
   }
 
   removeMarkedTag() {
     const {tags, tagIndexToRemove} = this.state;
+
     if (!_.isUndefined(tagIndexToRemove)) {
       const removedTag = tags[tagIndexToRemove];
+
       tags.splice(tagIndexToRemove, 1);
       this.setState({
         tags,
-        tagIndexToRemove: undefined,
+        tagIndexToRemove: undefined
       });
       _.invoke(this.props, 'onChangeTags', tags, TagsInput.onChangeTagsActions.REMOVED, removedTag);
     }
@@ -190,13 +194,15 @@ export default class TagsInput extends BaseComponent {
     const {tags, tagIndexToRemove} = this.state;
     const tagsCount = _.size(tags);
     const isLastTagMarked = tagIndexToRemove === tagsCount - 1;
+
     return isLastTagMarked;
   }
 
   onKeyPress(event) {
     _.invoke(this.props, 'onKeyPress', event);
-    
-    if (this.props.disableTagRemoval) {
+
+    const {disableTagRemoval} = this.getThemeProps();
+    if (disableTagRemoval) {
       return;
     }
 
@@ -210,7 +216,7 @@ export default class TagsInput extends BaseComponent {
     if (pressedBackspace) {
       if (hasNoValue && hasTags && _.isUndefined(tagIndexToRemove)) {
         this.setState({
-          tagIndexToRemove: tagsCount - 1,
+          tagIndexToRemove: tagsCount - 1
         });
       } else if (!_.isUndefined(tagIndexToRemove)) {
         this.removeMarkedTag();
@@ -220,10 +226,10 @@ export default class TagsInput extends BaseComponent {
 
   getLabel(item) {
     const {getLabel} = this.props;
+
     if (getLabel) {
       return getLabel(item);
     }
-
     if (_.isString(item)) {
       return item;
     }
@@ -232,29 +238,29 @@ export default class TagsInput extends BaseComponent {
 
   renderLabel(tag, shouldMarkTag) {
     const typography = this.extractTypographyValue();
+    const label = this.getLabel(tag);
+
     return (
       <View row centerV>
-        {shouldMarkTag &&
-          <Image style={styles.removeIcon} source={Assets.icons.x} />}
-        <Text style={[styles.tagLabel, typography]}>
-          {shouldMarkTag ? 'Remove' : this.getLabel(tag)}
+        {shouldMarkTag && <Image style={styles.removeIcon} source={Assets.icons.x}/>}
+        <Text style={[styles.tagLabel, typography]} accessibilityLabel={`${label} tag`}>
+          {shouldMarkTag ? 'Remove' : label}
         </Text>
       </View>
     );
   }
 
   renderTag(tag, index) {
-    const {tagStyle, renderTag} = this.props;
+    const {tagStyle, renderTag} = this.getThemeProps();
     const {tagIndexToRemove} = this.state;
     const shouldMarkTag = tagIndexToRemove === index;
+
     if (_.isFunction(renderTag)) {
       return renderTag(tag, index, shouldMarkTag, this.getLabel(tag));
     }
+
     return (
-      <View
-        key={index}
-        style={[styles.tag, tagStyle, shouldMarkTag && styles.tagMarked]}
-      >
+      <View key={index} style={[styles.tag, tagStyle, shouldMarkTag && styles.tagMarked]}>
         {this.renderLabel(tag, shouldMarkTag)}
       </View>
     );
@@ -266,6 +272,7 @@ export default class TagsInput extends BaseComponent {
         key={index}
         activeOpacity={1}
         onPress={() => this.onTagPress(index)}
+        accessibilityHint={!this.props.disableTagRemoval ? 'tap twice for remove tag mode' : undefined}
       >
         {this.renderTag(tag, index)}
       </TouchableOpacity>
@@ -273,13 +280,14 @@ export default class TagsInput extends BaseComponent {
   }
 
   renderTextInput() {
-    const {containerStyle, inputStyle, selectionColor, ...others} = this.props;
+    const {inputStyle, selectionColor, ...others} = this.getThemeProps();
     const {value} = this.state;
     const isLastTagMarked = this.isLastTagMarked();
+
     return (
       <View style={styles.inputWrapper}>
-        <TextInput
-          ref={r => this.input = r}
+        <TextField
+          ref={r => (this.input = r)}
           text80
           blurOnSubmit={false}
           {...others}
@@ -293,17 +301,19 @@ export default class TagsInput extends BaseComponent {
           style={inputStyle}
           containerStyle={{flexGrow: 0}}
           collapsable={false}
+          accessibilityHint={
+            !this.props.disableTagRemoval ? 'press keyboard delete button to remove last tag' : undefined
+          }
         />
       </View>
     );
   }
 
   render() {
-    const {disableTagRemoval} = this.props;
+    const {disableTagRemoval, containerStyle, hideUnderline} = this.getThemeProps();
     const tagRenderFn = disableTagRemoval ? this.renderTag : this.renderTagWrapper;
-
-    const {containerStyle, hideUnderline} = this.props;
     const {tags} = this.state;
+
     return (
       <View style={[!hideUnderline && styles.withUnderline, containerStyle]}>
         <View style={styles.tagsList}>
@@ -313,22 +323,33 @@ export default class TagsInput extends BaseComponent {
       </View>
     );
   }
+
+  blur() {
+    this.input.blur();
+  }
+
+  focus() {
+    this.input.focus();
+  }
+
+  clear() {
+    this.input.clear();
+  }
 }
 
-const GUTTER_SPACING = 8;
 const styles = StyleSheet.create({
   withUnderline: {
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: ThemeManager.dividerColor,
+    borderColor: ThemeManager.dividerColor
   },
   tagsList: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexWrap: 'wrap'
   },
   inputWrapper: {
     flexGrow: 1,
     minWidth: 120,
-    justifyContent: 'center',
+    justifyContent: 'center'
   },
   tag: {
     backgroundColor: Colors.blue30,
@@ -336,19 +357,19 @@ const styles = StyleSheet.create({
     paddingVertical: 4.5,
     paddingHorizontal: 12,
     marginRight: GUTTER_SPACING,
-    marginVertical: GUTTER_SPACING / 2,
+    marginVertical: GUTTER_SPACING / 2
   },
   tagMarked: {
-    backgroundColor: Colors.dark10,
+    backgroundColor: Colors.dark10
   },
   removeIcon: {
     tintColor: Colors.white,
     width: 10,
     height: 10,
-    marginRight: 6,
+    marginRight: 6
   },
   tagLabel: {
     ...Typography.text80,
-    color: Colors.white,
-  },
+    color: Colors.white
+  }
 });
